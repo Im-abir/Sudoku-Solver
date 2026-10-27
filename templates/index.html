@@ -1,0 +1,525 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Sudoku AI Solver</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- HEADER -->
+
+    <header class="header">
+
+        <div class="brand-badge">
+            WHERE LOGIC MEETS INTELLIGENCE
+        </div>
+
+        <h1>
+            Sudoku <span>AI Solver</span>
+        </h1>
+
+        <p>
+            <strong>The Real Fun Is in Solving It Yourself!</strong>
+        </p>
+
+        <p>
+           Give your Sudoku puzzle a try, challenge your mind, and when you're done, let AI reveal the solution to see how well you did.
+        </p>
+
+    </header>
+
+
+    <!-- ERROR MESSAGE -->
+
+    {% if error_message %}
+
+    <section class="card error-card" id="error-section">
+
+        <div class="error-icon">
+            !
+        </div>
+
+        <span class="eyebrow">
+            LET'S TRY AGAIN
+        </span>
+
+        <h2>
+            We Couldn't Solve This Puzzle
+        </h2>
+
+        <p class="error-description">
+            {{ error_message }}
+        </p>
+
+        <div class="error-tips">
+
+            <h3>Tips for a better result</h3>
+
+            <ul>
+                <li>Upload a clear, high-resolution image.</li>
+
+                <li>Make sure the entire 9×9 grid is visible.</li>
+
+                <li>Avoid blurry or tilted photos.</li>
+
+                <li>Use good lighting with minimal shadows.</li>
+
+                <li>Make sure the digits are clearly visible.</li>
+            </ul>
+
+        </div>
+
+        <a href="{{ url_for('index') }}"
+           class="retry-button">
+            ↻ Upload Another Image
+        </a>
+
+    </section>
+
+    {% else %}
+
+
+    <!-- UPLOAD CARD -->
+
+    <section class="card upload-card">
+
+        <div class="section-heading">
+
+            <span class="eyebrow">
+                GET STARTED
+            </span>
+
+            <h2>
+                Upload your puzzle
+            </h2>
+
+            <p class="section-description">
+                Choose a clear image containing a
+                9×9 Sudoku grid.
+            </p>
+
+        </div>
+
+
+        <form
+            id="sudoku-form"
+            action="{{ url_for('solve_sudoku') }}"
+            method="POST"
+            enctype="multipart/form-data"
+        >
+
+            <div
+                class="upload-area"
+                id="upload-area"
+                role="button"
+                tabindex="0"
+                aria-label="Choose or drop a Sudoku image"
+            >
+
+                <div class="upload-icon">
+                    ▦
+                </div>
+
+                <h3>
+                    Drop your Sudoku image here
+                </h3>
+
+                <p>
+                    or browse from your device
+                </p>
+
+                <input
+                    type="file"
+                    name="file"
+                    id="file"
+                    accept=".jpg,.jpeg,.png,.webp,image/*"
+                    required
+                >
+
+                <label for="file" class="choose-button">
+                    Choose Image
+                </label>
+
+                <p id="file-name" class="file-name">
+                    No file selected
+                </p>
+
+                <img
+                    id="image-preview"
+                    class="image-preview"
+                    alt="Selected Sudoku image preview"
+                    hidden
+                >
+
+            </div>
+
+
+            <div class="upload-hint">
+
+                <span>✓ JPG, PNG, WEBP</span>
+
+                <span>✓ Clear, straight images work best</span>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="solve-button"
+                id="solve-button"
+            >
+                <span id="button-text">
+                    ✦ Solve Sudoku
+                </span>
+            </button>
+
+
+            <!-- LOADING INDICATOR -->
+
+            <div
+                id="loading"
+                class="loading"
+                role="status"
+                aria-live="polite"
+                hidden
+            >
+
+                <div class="spinner"></div>
+
+                <div>
+
+                    <strong>
+                        Solving your puzzle...
+                    </strong>
+
+                    <p>
+                        Detecting digits and finding the solution.
+                        Difficult puzzles may take longer.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </form>
+
+    </section>
+
+
+    <!-- SUCCESS RESULT -->
+
+    {% if result_image %}
+
+    <section class="card result-card">
+
+        <div class="result-heading">
+
+            <div>
+
+                <span class="eyebrow">
+                    YOUR RESULT
+                </span>
+
+                <h2>
+                    Sudoku Solved!
+                </h2>
+
+            </div>
+
+            <span class="success-badge">
+                ✓ Complete
+            </span>
+
+        </div>
+
+
+        <div class="result-image-container">
+
+            <img
+                src="{{ url_for('static',
+                      filename='results/' + result_image) }}"
+                alt="Solved Sudoku puzzle"
+                class="result-image"
+            >
+
+        </div>
+
+
+        <a
+            href="{{ url_for('static',
+                  filename='results/' + result_image) }}"
+            class="download-button"
+            download="solved_sudoku.png"
+        >
+            ↓ Download Solution
+        </a>
+
+    </section>
+
+    {% endif %}
+
+
+    <!-- GRID COMPARISON -->
+
+    {% if original_grid or solved_grid %}
+
+    <section class="grid-comparison">
+
+        {% if original_grid %}
+
+        <div class="card grid-card">
+
+            <span class="eyebrow">
+                STEP 01
+            </span>
+
+            <h2>
+                Recognized Puzzle
+            </h2>
+
+            <p class="section-description">
+                Digits detected from your uploaded image.
+            </p>
+
+            <div class="sudoku-grid">
+
+                {% for row in original_grid %}
+
+                    {% for value in row %}
+
+                    <div class="cell
+                        {% if value != 0 %}given{% endif %}">
+
+                        {{ value if value != 0 else "" }}
+
+                    </div>
+
+                    {% endfor %}
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+
+        {% if solved_grid %}
+
+        <div class="card grid-card">
+
+            <span class="eyebrow">
+                STEP 02
+            </span>
+
+            <h2>
+                AI Solution
+            </h2>
+
+            <p class="section-description">
+                Original digits and newly solved values.
+            </p>
+
+            <div class="sudoku-grid solved-grid">
+
+                {% for row in solved_grid %}
+
+                    {% set row_index = loop.index0 %}
+
+                    {% for value in row %}
+
+                        {% set col_index = loop.index0 %}
+
+                        <div class="cell
+                            {% if original_grid
+                               and original_grid[row_index][col_index] != 0 %}
+                                given
+                            {% else %}
+                                generated
+                            {% endif %}">
+
+                            {{ value }}
+
+                        </div>
+
+                    {% endfor %}
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="grid-legend">
+
+                <span>
+                    <i class="legend-dot original-dot"></i>
+                    Original digit
+                </span>
+
+                <span>
+                    <i class="legend-dot generated-dot"></i>
+                    Solved digit
+                </span>
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+    </section>
+
+    {% endif %}
+
+    {% endif %}
+
+
+    <!-- FOOTER -->
+
+    <footer>
+
+        <p>
+            Built with Python · Flask · OpenCV · CNN · Backtracking
+        </p>
+
+        <p>
+            Sudoku AI Solver
+        </p>
+
+    </footer>
+
+</div>
+
+
+<!-- JAVASCRIPT -->
+
+<script>
+
+    const fileInput = document.getElementById("file");
+    const fileName = document.getElementById("file-name");
+    const preview = document.getElementById("image-preview");
+    const uploadArea = document.getElementById("upload-area");
+    const form = document.getElementById("sudoku-form");
+    const solveButton = document.getElementById("solve-button");
+    const buttonText = document.getElementById("button-text");
+    const loading = document.getElementById("loading");
+
+    let previewUrl = null;
+
+    function updateFile(file) {
+
+        if (!file) {
+            fileName.textContent = "No file selected";
+            preview.hidden = true;
+            return;
+        }
+
+        if (!file.type.startsWith("image/")) {
+            alert("Please select a valid image file.");
+            fileInput.value = "";
+            updateFile(null);
+            return;
+        }
+
+        fileName.textContent = file.name;
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+
+        previewUrl = URL.createObjectURL(file);
+
+        preview.src = previewUrl;
+        preview.hidden = false;
+    }
+
+    if (fileInput && form) {
+
+        fileInput.addEventListener("change", function () {
+            updateFile(this.files[0]);
+        });
+
+        uploadArea.addEventListener("click", function (event) {
+
+            if (
+                event.target.closest("label") ||
+                event.target === fileInput
+            ) {
+                return;
+            }
+
+            fileInput.click();
+        });
+
+        uploadArea.addEventListener("keydown", function (event) {
+
+            if (
+                event.target === uploadArea &&
+                (event.key === "Enter" || event.key === " ")
+            ) {
+                event.preventDefault();
+                fileInput.click();
+            }
+        });
+
+        uploadArea.addEventListener("dragover", function (event) {
+            event.preventDefault();
+            uploadArea.classList.add("drag-active");
+        });
+
+        uploadArea.addEventListener("dragleave", function (event) {
+            event.preventDefault();
+            uploadArea.classList.remove("drag-active");
+        });
+
+        uploadArea.addEventListener("drop", function (event) {
+
+            event.preventDefault();
+            uploadArea.classList.remove("drag-active");
+
+            const file = event.dataTransfer.files[0];
+
+            if (!file || !file.type.startsWith("image/")) {
+                alert("Please drop a valid image file.");
+                return;
+            }
+
+            const transfer = new DataTransfer();
+
+            transfer.items.add(file);
+            fileInput.files = transfer.files;
+
+            updateFile(file);
+        });
+
+        form.addEventListener("submit", function (event) {
+
+            if (!fileInput.files.length) {
+                event.preventDefault();
+                alert("Please choose a Sudoku image first.");
+                return;
+            }
+
+            solveButton.disabled = true;
+            buttonText.textContent = "Processing...";
+            loading.hidden = false;
+        });
+    }
+
+</script>
+
+</body>
+</html>
